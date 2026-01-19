@@ -109,19 +109,19 @@ Farm work is physical. We're building things to help with that:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  FARM AUTOMATION                                                            │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  Home Assistant  │  ESPHome  │  MQTT  │  InfluxDB  │  Grafana             │
+│  Home Assistant  │  ESPHome  │  MQTT  │  InfluxDB  │  Grafana               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  DEVELOPMENT                                                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  Python  │  TypeScript  │  Go  │  Rust  │  C++ (embedded)                  │
+│  Python  │  TypeScript  │  Go  │  Rust  │  C++ (embedded)                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  AI & DATA                                                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  Claude Code  │  GitHub Copilot  │  Pandas  │  scikit-learn  │  NSIP API  │
+│  Claude Code  │  GitHub Copilot  │  Pandas  │  scikit-learn  │  NSIP API    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  INFRASTRUCTURE                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  GitHub Actions  │  Docker  │  Raspberry Pi  │  ESP32  │  LoRa             │
+│  GitHub Actions  │  Docker  │  Raspberry Pi  │  ESP32  │  LoRa              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
