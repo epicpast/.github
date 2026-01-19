@@ -1,6 +1,20 @@
 # Organization GitHub Configuration
 
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Reusable_Workflows-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/epicpast/.github/tree/main/.github/workflows)
+[![Copilot Skills](https://img.shields.io/badge/Copilot-Skills_Enabled-000000?style=flat-square&logo=github&logoColor=white)](https://github.com/epicpast/.github/tree/main/.github/skills)
+[![AI Agents](https://img.shields.io/badge/AI-Autonomous_Agents-7B1FA2?style=flat-square&logo=openai&logoColor=white)](https://github.com/epicpast/.github/tree/main/agents)
+[![License](https://img.shields.io/badge/License-MIT-228B22?style=flat-square)](LICENSE)
+
 This repository contains organization-wide GitHub configuration, reusable workflows, composite actions, and AI assistant integrations for the **epicpast** ecosystem.
+
+<details>
+<summary><strong>View Ecosystem Overview</strong></summary>
+
+<br>
+
+<img src="https://raw.githubusercontent.com/epicpast/.github/main/.github/readme-infographic.svg" alt="epicpast ecosystem overview" width="100%">
+
+</details>
 
 ## What This Repository Provides
 
