@@ -1,0 +1,299 @@
+# Reusable Homebrew Formula Workflow
+# Builds, tests, and releases Homebrew formulas for CLI tools
+#
+# Security Note: This workflow only uses workflow_call inputs (controlled by caller)
+# and internal job status values. No untrusted user input is used in run commands.
+#
+# Usage in consuming workflows:
+#   jobs:
+#     homebrew:
+#       uses: epicpast/.github/.github/workflows/reusable-homebrew-formula.yml@main
+#       with:
+#         formula-name: mytool
+#         tap-repo: epicpast/homebrew-tap
+#       secrets: inherit
+
+name: Homebrew Formula
+
+on:
+  workflow_call:
+    inputs:
+      formula-name:
+        description: 'Name of the Homebrew formula'
+        required: true
+        type: string
+      tap-repo:
+        description: 'Homebrew tap repository (e.g., epicpast/homebrew-tap)'
+        required: false
+        type: string
+        default: 'epicpast/homebrew-tap'
+      formula-path:
+        description: 'Path to formula file in tap repo'
+        required: false
+        type: string
+        default: 'Formula'
+      version:
+        description: 'Version to release (defaults to git tag)'
+        required: false
+        type: string
+        default: ''
+      binary-name:
+        description: 'Binary name (defaults to formula-name)'
+        required: false
+        type: string
+        default: ''
+      homepage:
+        description: 'Project homepage URL'
+        required: false
+        type: string
+        default: ''
+      description:
+        description: 'Formula description'
+        required: false
+        type: string
+        default: ''
+      license:
+        description: 'SPDX license identifier'
+        required: false
+        type: string
+        default: 'MIT'
+      test-install:
+        description: 'Test formula installation'
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        description: 'Runner to use'
+        required: false
+        type: string
+        default: 'macos-latest'
+    secrets:
+      TAP_GITHUB_TOKEN:
+        description: 'GitHub token with write access to tap repository'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # Build - Create release artifacts
+  # ===========================================================================
+  build:
+    name: Build Release Artifacts
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256-darwin-arm64: ${{ steps.checksums.outputs.darwin-arm64 }}
+      sha256-darwin-amd64: ${{ steps.checksums.outputs.darwin-amd64 }}
+      sha256-linux-amd64: ${{ steps.checksums.outputs.linux-amd64 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          elif [[ "$GITHUB_REF_NAME" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#refs/tags/}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORMULA_NAME: ${{ inputs.formula-name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+
+          # Try to download from GitHub release
+          for arch in darwin-arm64 darwin-amd64 linux-amd64; do
+            artifact="${FORMULA_NAME}-${VERSION}-${arch}.tar.gz"
+            if gh release download "v${VERSION}" --pattern "$artifact" --dir dist 2>/dev/null; then
+              echo "Downloaded $artifact"
+            else
+              echo "Artifact $artifact not found in release"
+            fi
+          done
+
+      - name: Calculate checksums
+        id: checksums
+        env:
+          FORMULA_NAME: ${{ inputs.formula-name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cd dist
+          for arch in darwin-arm64 darwin-amd64 linux-amd64; do
+            artifact="${FORMULA_NAME}-${VERSION}-${arch}.tar.gz"
+            if [[ -f "$artifact" ]]; then
+              sha=$(shasum -a 256 "$artifact" | cut -d' ' -f1)
+              echo "${arch}=${sha}" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+  # ===========================================================================
+  # Update Formula - Update Homebrew tap
+  # ===========================================================================
+  update-formula:
+    name: Update Formula
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: ${{ inputs.tap-repo }}
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: tap
+
+      - name: Generate formula
+        env:
+          FORMULA_NAME: ${{ inputs.formula-name }}
+          FORMULA_PATH: ${{ inputs.formula-path }}
+          VERSION: ${{ needs.build.outputs.version }}
+          BINARY_NAME: ${{ inputs.binary-name }}
+          INPUT_FORMULA_NAME: ${{ inputs.formula-name }}
+          HOMEPAGE: ${{ inputs.homepage }}
+          DESCRIPTION: ${{ inputs.description }}
+          LICENSE: ${{ inputs.license }}
+          SHA256_DARWIN_ARM64: ${{ needs.build.outputs.sha256-darwin-arm64 }}
+          SHA256_DARWIN_AMD64: ${{ needs.build.outputs.sha256-darwin-amd64 }}
+          SHA256_LINUX_AMD64: ${{ needs.build.outputs.sha256-linux-amd64 }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          # Set binary name default
+          if [[ -z "$BINARY_NAME" ]]; then
+            BINARY_NAME="$INPUT_FORMULA_NAME"
+          fi
+
+          # Convert formula name to class name (my-tool -> MyTool)
+          CLASS_NAME=$(echo "$FORMULA_NAME" | sed -E 's/(^|-)([a-z])/\U\2/g')
+
+          # Set description default
+          if [[ -z "$DESCRIPTION" ]]; then
+            DESCRIPTION="A command-line tool"
+          fi
+
+          # Set homepage default
+          if [[ -z "$HOMEPAGE" ]]; then
+            HOMEPAGE="$REPO_URL"
+          fi
+
+          mkdir -p "tap/${FORMULA_PATH}"
+
+          cat > "tap/${FORMULA_PATH}/${FORMULA_NAME}.rb" << FORMULA
+          class ${CLASS_NAME} < Formula
+            desc "${DESCRIPTION}"
+            homepage "${HOMEPAGE}"
+            version "${VERSION}"
+            license "${LICENSE}"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${REPO_URL}/releases/download/v${VERSION}/${FORMULA_NAME}-${VERSION}-darwin-arm64.tar.gz"
+                sha256 "${SHA256_DARWIN_ARM64}"
+              else
+                url "${REPO_URL}/releases/download/v${VERSION}/${FORMULA_NAME}-${VERSION}-darwin-amd64.tar.gz"
+                sha256 "${SHA256_DARWIN_AMD64}"
+              end
+            end
+
+            on_linux do
+              url "${REPO_URL}/releases/download/v${VERSION}/${FORMULA_NAME}-${VERSION}-linux-amd64.tar.gz"
+              sha256 "${SHA256_LINUX_AMD64}"
+            end
+
+            def install
+              bin.install "${BINARY_NAME}"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/${BINARY_NAME} --version")
+            end
+          end
+          FORMULA
+
+      - name: Commit and push formula
+        env:
+          FORMULA_NAME: ${{ inputs.formula-name }}
+          FORMULA_PATH: ${{ inputs.formula-path }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${FORMULA_PATH}/${FORMULA_NAME}.rb"
+          git commit -m "Update ${FORMULA_NAME} to ${VERSION}" || echo "No changes to commit"
+          git push
+
+  # ===========================================================================
+  # Test - Test formula installation
+  # ===========================================================================
+  test:
+    name: Test Installation
+    runs-on: ${{ inputs.runs-on }}
+    needs: update-formula
+    if: inputs.test-install
+    steps:
+      - name: Install formula
+        env:
+          TAP_REPO: ${{ inputs.tap-repo }}
+          FORMULA_NAME: ${{ inputs.formula-name }}
+        run: |
+          brew tap "$TAP_REPO"
+          TAP_NAME="${TAP_REPO#*/}"
+          brew install "${TAP_NAME}/${FORMULA_NAME}"
+
+      - name: Test formula
+        env:
+          BINARY_NAME: ${{ inputs.binary-name }}
+          INPUT_FORMULA_NAME: ${{ inputs.formula-name }}
+        run: |
+          if [[ -z "$BINARY_NAME" ]]; then
+            BINARY_NAME="$INPUT_FORMULA_NAME"
+          fi
+          "$BINARY_NAME" --version
+
+  # ===========================================================================
+  # Summary - Aggregate results
+  # ===========================================================================
+  all-checks-pass:
+    name: All Checks Pass
+    if: always()
+    needs: [build, update-formula, test]
+    runs-on: ubuntu-latest
+    env:
+      BUILD_RESULT: ${{ needs.build.result }}
+      UPDATE_RESULT: ${{ needs.update-formula.result }}
+      TEST_RESULT: ${{ needs.test.result }}
+      TEST_ENABLED: ${{ inputs.test-install }}
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "$BUILD_RESULT" != "success" ]]; then
+            echo "Build failed"
+            exit 1
+          fi
+
+          if [[ "$UPDATE_RESULT" != "success" ]]; then
+            echo "Formula update failed"
+            exit 1
+          fi
+
+          if [[ "$TEST_ENABLED" == "true" ]] && [[ "$TEST_RESULT" != "success" ]]; then
+            echo "Installation test failed"
+            exit 1
+          fi
+
+          echo "All checks passed!"

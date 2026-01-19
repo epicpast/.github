@@ -1,0 +1,300 @@
+# Reusable Homebrew Cask Workflow
+# Builds, tests, and releases Homebrew casks for GUI applications
+#
+# Security Note: This workflow only uses workflow_call inputs (controlled by caller)
+# and internal job status values. No untrusted user input is used in run commands.
+#
+# Usage in consuming workflows:
+#   jobs:
+#     homebrew:
+#       uses: epicpast/.github/.github/workflows/reusable-homebrew-cask.yml@main
+#       with:
+#         cask-name: myapp
+#         tap-repo: epicpast/homebrew-tap
+#       secrets: inherit
+
+name: Homebrew Cask
+
+on:
+  workflow_call:
+    inputs:
+      cask-name:
+        description: 'Name of the Homebrew cask'
+        required: true
+        type: string
+      tap-repo:
+        description: 'Homebrew tap repository (e.g., epicpast/homebrew-tap)'
+        required: false
+        type: string
+        default: 'epicpast/homebrew-tap'
+      cask-path:
+        description: 'Path to cask file in tap repo'
+        required: false
+        type: string
+        default: 'Casks'
+      version:
+        description: 'Version to release (defaults to git tag)'
+        required: false
+        type: string
+        default: ''
+      app-name:
+        description: 'Application name (with .app extension)'
+        required: false
+        type: string
+        default: ''
+      homepage:
+        description: 'Project homepage URL'
+        required: false
+        type: string
+        default: ''
+      description:
+        description: 'Cask description'
+        required: false
+        type: string
+        default: ''
+      artifact-type:
+        description: 'Type of artifact (dmg, zip, pkg)'
+        required: false
+        type: string
+        default: 'dmg'
+      test-install:
+        description: 'Test cask installation'
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        description: 'Runner to use'
+        required: false
+        type: string
+        default: 'macos-latest'
+    secrets:
+      TAP_GITHUB_TOKEN:
+        description: 'GitHub token with write access to tap repository'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # Build - Calculate checksums for release artifacts
+  # ===========================================================================
+  build:
+    name: Calculate Checksums
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256-arm64: ${{ steps.checksums.outputs.arm64 }}
+      sha256-amd64: ${{ steps.checksums.outputs.amd64 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          elif [[ "$GITHUB_REF_NAME" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#refs/tags/}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CASK_NAME: ${{ inputs.cask-name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
+        run: |
+          mkdir -p dist
+
+          # Try to download from GitHub release
+          for arch in arm64 x64; do
+            artifact="${CASK_NAME}-${VERSION}-darwin-${arch}.${ARTIFACT_TYPE}"
+            if gh release download "v${VERSION}" --pattern "$artifact" --dir dist 2>/dev/null; then
+              echo "Downloaded $artifact"
+            fi
+          done
+
+      - name: Calculate checksums
+        id: checksums
+        env:
+          CASK_NAME: ${{ inputs.cask-name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
+        run: |
+          cd dist
+          for arch in arm64 x64; do
+            artifact="${CASK_NAME}-${VERSION}-darwin-${arch}.${ARTIFACT_TYPE}"
+            if [[ -f "$artifact" ]]; then
+              sha=$(shasum -a 256 "$artifact" | cut -d' ' -f1)
+              if [[ "$arch" == "x64" ]]; then
+                echo "amd64=${sha}" >> "$GITHUB_OUTPUT"
+              else
+                echo "${arch}=${sha}" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+          done
+
+  # ===========================================================================
+  # Update Cask - Update Homebrew tap
+  # ===========================================================================
+  update-cask:
+    name: Update Cask
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: ${{ inputs.tap-repo }}
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: tap
+
+      - name: Generate cask
+        env:
+          CASK_NAME: ${{ inputs.cask-name }}
+          CASK_PATH: ${{ inputs.cask-path }}
+          VERSION: ${{ needs.build.outputs.version }}
+          APP_NAME: ${{ inputs.app-name }}
+          HOMEPAGE: ${{ inputs.homepage }}
+          DESCRIPTION: ${{ inputs.description }}
+          ARTIFACT_TYPE: ${{ inputs.artifact-type }}
+          SHA256_ARM64: ${{ needs.build.outputs.sha256-arm64 }}
+          SHA256_AMD64: ${{ needs.build.outputs.sha256-amd64 }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          # Determine app name - convert cask-name to AppName.app if not provided
+          if [[ -z "$APP_NAME" ]]; then
+            APP_NAME=$(echo "$CASK_NAME" | sed -E 's/(^|-)([a-z])/\U\2/g').app
+          fi
+
+          # Set description default
+          if [[ -z "$DESCRIPTION" ]]; then
+            DESCRIPTION="A macOS application"
+          fi
+
+          # Set homepage default
+          if [[ -z "$HOMEPAGE" ]]; then
+            HOMEPAGE="$REPO_URL"
+          fi
+
+          mkdir -p "tap/${CASK_PATH}"
+
+          cat > "tap/${CASK_PATH}/${CASK_NAME}.rb" << CASK
+          cask "${CASK_NAME}" do
+            version "${VERSION}"
+
+            on_arm do
+              sha256 "${SHA256_ARM64}"
+              url "${REPO_URL}/releases/download/v${VERSION}/${CASK_NAME}-${VERSION}-darwin-arm64.${ARTIFACT_TYPE}"
+            end
+
+            on_intel do
+              sha256 "${SHA256_AMD64}"
+              url "${REPO_URL}/releases/download/v${VERSION}/${CASK_NAME}-${VERSION}-darwin-x64.${ARTIFACT_TYPE}"
+            end
+
+            name "${CASK_NAME}"
+            desc "${DESCRIPTION}"
+            homepage "${HOMEPAGE}"
+
+            app "${APP_NAME}"
+
+            zap trash: [
+              "~/Library/Application Support/${CASK_NAME}",
+              "~/Library/Caches/${CASK_NAME}",
+              "~/Library/Preferences/com.${CASK_NAME}.plist",
+            ]
+          end
+          CASK
+
+      - name: Commit and push cask
+        env:
+          CASK_NAME: ${{ inputs.cask-name }}
+          CASK_PATH: ${{ inputs.cask-path }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${CASK_PATH}/${CASK_NAME}.rb"
+          git commit -m "Update ${CASK_NAME} to ${VERSION}" || echo "No changes to commit"
+          git push
+
+  # ===========================================================================
+  # Test - Test cask installation
+  # ===========================================================================
+  test:
+    name: Test Installation
+    runs-on: ${{ inputs.runs-on }}
+    needs: update-cask
+    if: inputs.test-install
+    steps:
+      - name: Install cask
+        env:
+          TAP_REPO: ${{ inputs.tap-repo }}
+          CASK_NAME: ${{ inputs.cask-name }}
+        run: |
+          brew tap "$TAP_REPO"
+          TAP_NAME="${TAP_REPO#*/}"
+          brew install --cask "${TAP_NAME}/${CASK_NAME}"
+
+      - name: Verify installation
+        env:
+          APP_NAME: ${{ inputs.app-name }}
+          CASK_NAME: ${{ inputs.cask-name }}
+        run: |
+          # Determine app name
+          if [[ -z "$APP_NAME" ]]; then
+            APP_NAME=$(echo "$CASK_NAME" | sed -E 's/(^|-)([a-z])/\U\2/g').app
+          fi
+
+          if [[ -d "/Applications/${APP_NAME}" ]]; then
+            echo "Application installed successfully: ${APP_NAME}"
+          else
+            echo "Application not found: ${APP_NAME}"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Summary - Aggregate results
+  # ===========================================================================
+  all-checks-pass:
+    name: All Checks Pass
+    if: always()
+    needs: [build, update-cask, test]
+    runs-on: ubuntu-latest
+    env:
+      BUILD_RESULT: ${{ needs.build.result }}
+      UPDATE_RESULT: ${{ needs.update-cask.result }}
+      TEST_RESULT: ${{ needs.test.result }}
+      TEST_ENABLED: ${{ inputs.test-install }}
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "$BUILD_RESULT" != "success" ]]; then
+            echo "Build failed"
+            exit 1
+          fi
+
+          if [[ "$UPDATE_RESULT" != "success" ]]; then
+            echo "Cask update failed"
+            exit 1
+          fi
+
+          if [[ "$TEST_ENABLED" == "true" ]] && [[ "$TEST_RESULT" != "success" ]]; then
+            echo "Installation test failed"
+            exit 1
+          fi
+
+          echo "All checks passed!"

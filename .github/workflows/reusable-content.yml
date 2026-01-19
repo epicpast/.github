@@ -1,0 +1,316 @@
+# Reusable Content Pipeline Workflow
+# Builds and validates content assets (presentations, blog posts, PDFs)
+#
+# Security Note: This workflow only uses workflow_call inputs (controlled by caller)
+# and internal job status values. No untrusted user input is used in run commands.
+#
+# Usage in consuming workflows:
+#   jobs:
+#     content:
+#       uses: epicpast/.github/.github/workflows/reusable-content.yml@main
+#       with:
+#         content-type: presentation
+#         source-directory: slides
+#       secrets: inherit
+
+name: Content Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      content-type:
+        description: 'Type of content (presentation, blog, pdf)'
+        required: false
+        type: string
+        default: 'presentation'
+      source-directory:
+        description: 'Directory containing source content'
+        required: false
+        type: string
+        default: 'content'
+      output-directory:
+        description: 'Directory for built content'
+        required: false
+        type: string
+        default: 'dist'
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '22'
+      python-version:
+        description: 'Python version to use (for PDF generation)'
+        required: false
+        type: string
+        default: '3.12'
+      validate-links:
+        description: 'Validate links in content'
+        required: false
+        type: boolean
+        default: true
+      validate-spelling:
+        description: 'Check spelling in content'
+        required: false
+        type: boolean
+        default: true
+      runs-on:
+        description: 'Runner to use'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # Validate - Check content quality
+  # ===========================================================================
+  validate:
+    name: Validate Content
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v6.0.1
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.0.1
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check spelling
+        if: inputs.validate-spelling
+        env:
+          SOURCE_DIR: ${{ inputs.source-directory }}
+        run: |
+          if pnpm exec cspell --version &> /dev/null; then
+            pnpm exec cspell "$SOURCE_DIR/**/*.md" --no-progress || true
+          else
+            echo "cspell not installed, skipping spell check"
+          fi
+
+      - name: Validate Markdown
+        env:
+          SOURCE_DIR: ${{ inputs.source-directory }}
+        run: |
+          if pnpm exec markdownlint --version &> /dev/null; then
+            pnpm exec markdownlint "$SOURCE_DIR/**/*.md" --disable MD013 || true
+          else
+            echo "markdownlint not installed, skipping"
+          fi
+
+  # ===========================================================================
+  # Build Presentation - Build slide decks (Marp, Reveal.js, Slidev)
+  # ===========================================================================
+  build-presentation:
+    name: Build Presentation
+    runs-on: ${{ inputs.runs-on }}
+    if: inputs.content-type == 'presentation'
+    needs: validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v6.0.1
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.0.1
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Detect presentation tool
+        id: detect
+        env:
+          SOURCE_DIR: ${{ inputs.source-directory }}
+        run: |
+          if grep -rq "marp: true" "$SOURCE_DIR"/*.md 2>/dev/null; then
+            echo "tool=marp" >> "$GITHUB_OUTPUT"
+          elif grep -rq "theme:" "$SOURCE_DIR"/*.md 2>/dev/null; then
+            echo "tool=slidev" >> "$GITHUB_OUTPUT"
+          else
+            echo "tool=marp" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build with Marp
+        if: steps.detect.outputs.tool == 'marp'
+        env:
+          SOURCE_DIR: ${{ inputs.source-directory }}
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          pnpm exec marp "$SOURCE_DIR"/*.md \
+            --html \
+            --output "$OUTPUT_DIR" \
+            --allow-local-files
+
+      - name: Build with Slidev
+        if: steps.detect.outputs.tool == 'slidev'
+        env:
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          pnpm exec slidev build --base / --out "$OUTPUT_DIR"
+
+      - name: Upload presentation artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.1
+        with:
+          name: presentation
+          path: ${{ inputs.output-directory }}
+          retention-days: 30
+
+  # ===========================================================================
+  # Build Blog - Build blog content (Hugo, Astro, 11ty)
+  # ===========================================================================
+  build-blog:
+    name: Build Blog
+    runs-on: ${{ inputs.runs-on }}
+    if: inputs.content-type == 'blog'
+    needs: validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v6.0.1
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.0.1
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build blog
+        env:
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          if [[ -f "astro.config.mjs" ]] || [[ -f "astro.config.ts" ]]; then
+            pnpm exec astro build
+          elif [[ -f ".eleventy.js" ]] || [[ -f "eleventy.config.js" ]]; then
+            pnpm exec eleventy --output="$OUTPUT_DIR"
+          else
+            pnpm run build
+          fi
+
+      - name: Upload blog artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.1
+        with:
+          name: blog
+          path: ${{ inputs.output-directory }}
+          retention-days: 30
+
+  # ===========================================================================
+  # Build PDF - Generate PDFs from Markdown
+  # ===========================================================================
+  build-pdf:
+    name: Build PDF
+    runs-on: ${{ inputs.runs-on }}
+    if: inputs.content-type == 'pdf'
+    needs: validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v6.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: uv python install "$PYTHON_VERSION"
+
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended
+
+      - name: Build PDFs
+        env:
+          SOURCE_DIR: ${{ inputs.source-directory }}
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          for file in "$SOURCE_DIR"/*.md; do
+            if [[ -f "$file" ]]; then
+              basename="${file##*/}"
+              output_name="${basename%.md}.pdf"
+              pandoc "$file" \
+                --pdf-engine=xelatex \
+                -o "$OUTPUT_DIR/$output_name"
+            fi
+          done
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.1
+        with:
+          name: pdfs
+          path: ${{ inputs.output-directory }}/*.pdf
+          retention-days: 30
+
+  # ===========================================================================
+  # Summary - Aggregate results
+  # ===========================================================================
+  all-checks-pass:
+    name: All Checks Pass
+    if: always()
+    needs: [validate, build-presentation, build-blog, build-pdf]
+    runs-on: ubuntu-latest
+    env:
+      VALIDATE_RESULT: ${{ needs.validate.result }}
+      PRESENTATION_RESULT: ${{ needs.build-presentation.result }}
+      BLOG_RESULT: ${{ needs.build-blog.result }}
+      PDF_RESULT: ${{ needs.build-pdf.result }}
+      CONTENT_TYPE: ${{ inputs.content-type }}
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "$VALIDATE_RESULT" != "success" ]]; then
+            echo "Validation failed"
+            exit 1
+          fi
+
+          # Check appropriate build job based on content type
+          case "$CONTENT_TYPE" in
+            presentation)
+              if [[ "$PRESENTATION_RESULT" != "success" ]]; then
+                echo "Presentation build failed"
+                exit 1
+              fi
+              ;;
+            blog)
+              if [[ "$BLOG_RESULT" != "success" ]]; then
+                echo "Blog build failed"
+                exit 1
+              fi
+              ;;
+            pdf)
+              if [[ "$PDF_RESULT" != "success" ]]; then
+                echo "PDF build failed"
+                exit 1
+              fi
+              ;;
+          esac
+
+          echo "All checks passed!"

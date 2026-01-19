@@ -1,0 +1,196 @@
+# Reusable Documentation Workflow
+# Builds and deploys documentation using MkDocs or Sphinx
+#
+# Security Note: This workflow only uses workflow_call inputs (controlled by caller)
+# and internal job status values. No untrusted user input is used in run commands.
+#
+# Usage in consuming workflows:
+#   jobs:
+#     docs:
+#       uses: epicpast/.github/.github/workflows/reusable-docs.yml@main
+#       with:
+#         docs-tool: mkdocs
+#         python-version: '3.12'
+#       secrets: inherit
+
+name: Documentation
+
+on:
+  workflow_call:
+    inputs:
+      docs-tool:
+        description: 'Documentation tool to use (mkdocs or sphinx)'
+        required: false
+        type: string
+        default: 'mkdocs'
+      python-version:
+        description: 'Python version to use'
+        required: false
+        type: string
+        default: '3.12'
+      working-directory:
+        description: 'Working directory for commands'
+        required: false
+        type: string
+        default: '.'
+      docs-directory:
+        description: 'Directory containing documentation source'
+        required: false
+        type: string
+        default: 'docs'
+      output-directory:
+        description: 'Directory for built documentation'
+        required: false
+        type: string
+        default: 'site'
+      deploy:
+        description: 'Deploy to GitHub Pages'
+        required: false
+        type: boolean
+        default: false
+      runs-on:
+        description: 'Runner to use'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+    outputs:
+      docs-url:
+        description: 'URL of deployed documentation'
+        value: ${{ jobs.deploy.outputs.page_url }}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # Build - Build documentation
+  # ===========================================================================
+  build:
+    name: Build (${{ inputs.docs-tool }})
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0  # Full history for git-revision-date plugin
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v6.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: uv python install "$PYTHON_VERSION"
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Build MkDocs documentation
+        if: inputs.docs-tool == 'mkdocs'
+        env:
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          uv run mkdocs build --strict --site-dir "$OUTPUT_DIR"
+
+      - name: Build Sphinx documentation
+        if: inputs.docs-tool == 'sphinx'
+        env:
+          DOCS_DIR: ${{ inputs.docs-directory }}
+          OUTPUT_DIR: ${{ inputs.output-directory }}
+        run: |
+          uv run sphinx-build -W -b html "$DOCS_DIR" "$OUTPUT_DIR"
+
+      - name: Upload artifact for Pages
+        if: inputs.deploy
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: ${{ inputs.working-directory }}/${{ inputs.output-directory }}
+
+      - name: Upload documentation artifact
+        if: ${{ !inputs.deploy }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.1
+        with:
+          name: documentation
+          path: ${{ inputs.working-directory }}/${{ inputs.output-directory }}
+          retention-days: 30
+
+  # ===========================================================================
+  # Link Check - Validate documentation links
+  # ===========================================================================
+  link-check:
+    name: Link Check
+    runs-on: ${{ inputs.runs-on }}
+    needs: build
+    if: ${{ !inputs.deploy }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Download documentation artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: documentation
+          path: site
+
+      - name: Check links
+        uses: lycheeverse/lychee-action@f613c4a64e50d792e0b31ec34bbcbba12263c6a6 # v2.3.0
+        with:
+          args: --verbose --no-progress './site/**/*.html'
+          fail: false
+
+  # ===========================================================================
+  # Deploy - Deploy to GitHub Pages
+  # ===========================================================================
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    if: inputs.deploy
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # ===========================================================================
+  # Summary - Aggregate results
+  # ===========================================================================
+  all-checks-pass:
+    name: All Checks Pass
+    if: always()
+    needs: [build, link-check]
+    runs-on: ubuntu-latest
+    env:
+      BUILD_RESULT: ${{ needs.build.result }}
+      LINK_CHECK_RESULT: ${{ needs.link-check.result }}
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [[ "$BUILD_RESULT" != "success" ]]; then
+            echo "Build failed"
+            exit 1
+          fi
+
+          # Link check is optional (may be skipped)
+          if [[ "$LINK_CHECK_RESULT" == "failure" ]]; then
+            echo "Link check failed"
+            exit 1
+          fi
+
+          echo "All checks passed!"
