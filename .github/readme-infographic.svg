@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg-info" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8F5E9"/>
+      <stop offset="100%" stop-color="#C8E6C9"/>
+    </linearGradient>
+    <linearGradient id="card-green" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4CAF50"/>
+      <stop offset="100%" stop-color="#2E7D32"/>
+    </linearGradient>
+    <linearGradient id="card-blue" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#1976D2"/>
+    </linearGradient>
+    <linearGradient id="card-purple" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#AB47BC"/>
+      <stop offset="100%" stop-color="#7B1FA2"/>
+    </linearGradient>
+    <linearGradient id="card-orange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FF7043"/>
+      <stop offset="100%" stop-color="#E64A19"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#bg-info)" rx="12"/>
+
+  <!-- Title -->
+  <text x="400" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="700" fill="#1B5E20" text-anchor="middle">
+    epicpast/.github Ecosystem
+  </text>
+  <text x="400" y="70" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#388E3C" text-anchor="middle" opacity="0.8">
+    Organization-wide configuration for regenerative agriculture projects
+  </text>
+
+  <!-- Card 1: Reusable Workflows -->
+  <g transform="translate(40, 95)">
+    <rect width="165" height="130" rx="10" fill="url(#card-green)" opacity="0.95"/>
+    <text x="82" y="35" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="white" text-anchor="middle">Reusable Workflows</text>
+    <line x1="30" y1="50" x2="135" y2="50" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="82" y="72" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">Python CI</text>
+    <text x="82" y="88" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">TypeScript CI</text>
+    <text x="82" y="104" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">Go CI</text>
+    <text x="82" y="120" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">Security Scanning</text>
+  </g>
+
+  <!-- Card 2: Composite Actions -->
+  <g transform="translate(220, 95)">
+    <rect width="165" height="130" rx="10" fill="url(#card-blue)" opacity="0.95"/>
+    <text x="82" y="35" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="white" text-anchor="middle">Composite Actions</text>
+    <line x1="30" y1="50" x2="135" y2="50" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="82" y="72" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">setup-python-uv</text>
+    <text x="82" y="88" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">setup-node-pnpm</text>
+    <text x="82" y="104" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">security-scan</text>
+    <text x="82" y="120" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">release-notes</text>
+  </g>
+
+  <!-- Card 3: AI Agents -->
+  <g transform="translate(400, 95)">
+    <rect width="165" height="130" rx="10" fill="url(#card-purple)" opacity="0.95"/>
+    <text x="82" y="35" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="white" text-anchor="middle">AI Agents</text>
+    <line x1="30" y1="50" x2="135" y2="50" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="82" y="72" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">workflow-engineer</text>
+    <text x="82" y="88" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">template-architect</text>
+    <text x="82" y="104" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">security-auditor</text>
+    <text x="82" y="120" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">ecosystem-migrator</text>
+  </g>
+
+  <!-- Card 4: Copilot Skills -->
+  <g transform="translate(580, 95)">
+    <rect width="165" height="130" rx="10" fill="url(#card-orange)" opacity="0.95"/>
+    <text x="82" y="35" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="white" text-anchor="middle">Copilot Skills</text>
+    <line x1="30" y1="50" x2="135" y2="50" stroke="white" stroke-opacity="0.3" stroke-width="1"/>
+    <text x="82" y="72" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">workflow-development</text>
+    <text x="82" y="88" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">security-baseline</text>
+    <text x="82" y="104" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">template-creation</text>
+    <text x="82" y="120" font-family="system-ui, sans-serif" font-size="11" fill="white" text-anchor="middle" opacity="0.9">ai-tuning</text>
+  </g>
+
+  <!-- Flow arrows -->
+  <g fill="none" stroke="#2E7D32" stroke-width="2" opacity="0.4">
+    <path d="M400 240 L400 270" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- Bottom section: Key features -->
+  <rect x="40" y="255" width="720" height="55" rx="8" fill="white" opacity="0.7"/>
+  <text x="400" y="280" font-family="system-ui, sans-serif" font-size="12" fill="#1B5E20" text-anchor="middle" font-weight="600">
+    Used Across All epicpast Repositories
+  </text>
+  <text x="400" y="298" font-family="system-ui, sans-serif" font-size="11" fill="#388E3C" text-anchor="middle" opacity="0.9">
+    Sheep Genetics (NSIP) | Smart Farm Automation (Home Assistant) | Greenhouse Simulation | Robotics
+  </text>
+
+  <!-- Languages row -->
+  <g transform="translate(40, 325)">
+    <rect width="720" height="35" rx="6" fill="white" opacity="0.5"/>
+    <text x="20" y="23" font-family="system-ui, sans-serif" font-size="11" fill="#1B5E20" font-weight="600">Languages:</text>
+    <g transform="translate(100, 8)">
+      <rect width="60" height="20" rx="4" fill="#3572A5"/>
+      <text x="30" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Python</text>
+    </g>
+    <g transform="translate(170, 8)">
+      <rect width="70" height="20" rx="4" fill="#3178C6"/>
+      <text x="35" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">TypeScript</text>
+    </g>
+    <g transform="translate(250, 8)">
+      <rect width="45" height="20" rx="4" fill="#00ADD8"/>
+      <text x="22" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Go</text>
+    </g>
+    <g transform="translate(305, 8)">
+      <rect width="50" height="20" rx="4" fill="#DEA584"/>
+      <text x="25" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Rust</text>
+    </g>
+    <g transform="translate(365, 8)">
+      <rect width="50" height="20" rx="4" fill="#555555"/>
+      <text x="25" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">C++</text>
+    </g>
+    <text x="450" y="23" font-family="system-ui, sans-serif" font-size="11" fill="#1B5E20" font-weight="600">Tools:</text>
+    <g transform="translate(490, 8)">
+      <rect width="95" height="20" rx="4" fill="#41BDF5"/>
+      <text x="47" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Home Assistant</text>
+    </g>
+    <g transform="translate(595, 8)">
+      <rect width="55" height="20" rx="4" fill="#2088FF"/>
+      <text x="27" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Actions</text>
+    </g>
+    <g transform="translate(660, 8)">
+      <rect width="55" height="20" rx="4" fill="#2496ED"/>
+      <text x="27" y="14" font-family="system-ui, sans-serif" font-size="10" fill="white" text-anchor="middle">Docker</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="400" y="385" font-family="system-ui, sans-serif" font-size="10" fill="#388E3C" text-anchor="middle" opacity="0.7">
+    Regenerative Agriculture | Farmville, Virginia | epicpastures.com
+  </text>
+</svg>
