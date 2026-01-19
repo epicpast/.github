@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="grass-light" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#87CEEB;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#E8F5E9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4CAF50;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Sky and Ground -->
+  <rect width="1200" height="300" fill="url(#grass-light)"/>
+
+  <!-- Rolling Hills -->
+  <ellipse cx="200" cy="320" rx="400" ry="100" fill="url(#hill)" opacity="0.6"/>
+  <ellipse cx="800" cy="330" rx="500" ry="120" fill="url(#hill)" opacity="0.7"/>
+  <ellipse cx="1100" cy="310" rx="300" ry="80" fill="url(#hill)" opacity="0.5"/>
+
+  <!-- Sun -->
+  <circle cx="1050" cy="80" r="50" fill="#FFD54F" opacity="0.9"/>
+
+  <!-- Sheep silhouettes -->
+  <g fill="#FAFAFA" opacity="0.9">
+    <!-- Sheep 1 -->
+    <ellipse cx="300" cy="220" rx="30" ry="20"/>
+    <circle cx="280" cy="210" r="12"/>
+    <rect x="285" y="232" width="6" height="15" rx="2"/>
+    <rect x="305" y="232" width="6" height="15" rx="2"/>
+
+    <!-- Sheep 2 -->
+    <ellipse cx="420" cy="230" rx="25" ry="17"/>
+    <circle cx="405" cy="222" r="10"/>
+    <rect x="408" y="240" width="5" height="12" rx="2"/>
+    <rect x="425" y="240" width="5" height="12" rx="2"/>
+
+    <!-- Sheep 3 -->
+    <ellipse cx="550" cy="215" rx="28" ry="18"/>
+    <circle cx="570" cy="207" r="11"/>
+    <rect x="540" y="227" width="5" height="13" rx="2"/>
+    <rect x="555" y="227" width="5" height="13" rx="2"/>
+  </g>
+
+  <!-- Circuit/Tech pattern overlay -->
+  <g stroke="#2E7D32" stroke-width="1" fill="none" opacity="0.15">
+    <path d="M50 150 L150 150 L150 100 L250 100"/>
+    <path d="M950 200 L1000 200 L1000 150 L1100 150"/>
+    <circle cx="150" cy="150" r="4" fill="#2E7D32"/>
+    <circle cx="250" cy="100" r="4" fill="#2E7D32"/>
+    <circle cx="1000" cy="200" r="4" fill="#2E7D32"/>
+    <circle cx="1100" cy="150" r="4" fill="#2E7D32"/>
+  </g>
+
+  <!-- Text -->
+  <text x="600" y="100" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" fill="#1B5E20" text-anchor="middle">
+    Epic Pastures
+  </text>
+  <text x="600" y="140" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#388E3C" text-anchor="middle">
+    Where Regenerative Agriculture Meets Open Source Technology
+  </text>
+
+  <!-- Icons -->
+  <g fill="#2E7D32" opacity="0.8">
+    <!-- Leaf icon -->
+    <path transform="translate(480, 160) scale(0.8)" d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22L6.66 19.7C7.14 19.87 7.64 20 8 20C19 20 22 3 22 3C21 5 14 5.25 9 6.25C4 7.25 2 11.5 2 13.5C2 15.5 3.75 17.25 3.75 17.25C7 8 17 8 17 8Z"/>
+    <!-- Gear icon -->
+    <path transform="translate(700, 160) scale(0.8)" d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5A3.5 3.5 0 0 1 15.5 12A3.5 3.5 0 0 1 12 15.5M19.43 12.97C19.47 12.65 19.5 12.33 19.5 12C19.5 11.67 19.47 11.34 19.43 11L21.54 9.37C21.73 9.22 21.78 8.95 21.66 8.73L19.66 5.27C19.54 5.05 19.27 4.96 19.05 5.05L16.56 6.05C16.04 5.66 15.5 5.32 14.87 5.07L14.5 2.42C14.46 2.18 14.25 2 14 2H10C9.75 2 9.54 2.18 9.5 2.42L9.13 5.07C8.5 5.32 7.96 5.66 7.44 6.05L4.95 5.05C4.73 4.96 4.46 5.05 4.34 5.27L2.34 8.73C2.21 8.95 2.27 9.22 2.46 9.37L4.57 11C4.53 11.34 4.5 11.67 4.5 12C4.5 12.33 4.53 12.65 4.57 12.97L2.46 14.63C2.27 14.78 2.21 15.05 2.34 15.27L4.34 18.73C4.46 18.95 4.73 19.03 4.95 18.95L7.44 17.94C7.96 18.34 8.5 18.68 9.13 18.93L9.5 21.58C9.54 21.82 9.75 22 10 22H14C14.25 22 14.46 21.82 14.5 21.58L14.87 18.93C15.5 18.67 16.04 18.34 16.56 17.94L19.05 18.95C19.27 19.03 19.54 18.95 19.66 18.73L21.66 15.27C21.78 15.05 21.73 14.78 21.54 14.63L19.43 12.97Z"/>
+  </g>
+</svg>
